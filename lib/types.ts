@@ -16,6 +16,7 @@ export interface PonsToken {
   liqUsd?: number;
   vol1hUsd?: number;
   buyPct?: number;
+  priceChange5m?: number;
   logo?: string;
   graduated: boolean;
   curveFillPct?: number;
