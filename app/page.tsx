@@ -41,7 +41,9 @@ export default function Home() {
       const res = await fetch("/api/tokens");
       if (res.ok) {
         const data: DataResponse = await res.json();
-        setTokens(data.tokens);
+        
+        const processedTokens = deduplicateTickers(data.tokens);
+        setTokens(processedTokens);
         setHealth(data.health);
         setLastUpdate(data.timestamp);
       }
@@ -50,6 +52,61 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const deduplicateTickers = (tokens: PonsToken[]): PonsToken[] => {
+    const symbolMap = new Map<string, PonsToken[]>();
+    
+    for (const token of tokens) {
+      const sym = (token.symbol || "").toLowerCase().trim();
+      if (!sym) continue;
+      
+      if (!symbolMap.has(sym)) {
+        symbolMap.set(sym, []);
+      }
+      symbolMap.get(sym)!.push(token);
+    }
+    
+    const result: PonsToken[] = [];
+    const processed = new Set<string>();
+    
+    for (const token of tokens) {
+      if (processed.has(token.token)) continue;
+      
+      const sym = (token.symbol || "").toLowerCase().trim();
+      if (!sym) {
+        result.push(token);
+        processed.add(token.token);
+        continue;
+      }
+      
+      const duplicates = symbolMap.get(sym) || [];
+      if (duplicates.length <= 1) {
+        result.push(token);
+        processed.add(token.token);
+        continue;
+      }
+      
+      duplicates.sort((a, b) => (b.heat || 0) - (a.heat || 0));
+      
+      const topToken = duplicates[0];
+      if (token.token === topToken.token) {
+        result.push(token);
+        processed.add(token.token);
+      } else if (token.token === duplicates[1]?.token) {
+        result.push({
+          ...token,
+          symbol: token.symbol + " COPY",
+        });
+        processed.add(token.token);
+      }
+      
+      for (let i = 2; i < duplicates.length; i++) {
+        processed.add(duplicates[i].token);
+      }
+    }
+    
+    return result;
   };
 
   useEffect(() => {

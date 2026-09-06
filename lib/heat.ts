@@ -39,6 +39,16 @@ export function heatScore(input: HeatInput): number {
 
   if (liq > 0 && liq < 1500) raw -= 40;
   
+  if (isBook && mcap > 0 && mcap < 50000) {
+    const mcapPenalty = Math.max(0, (50000 - mcap) / 1000);
+    raw -= Math.min(120, mcapPenalty);
+  }
+  
+  if (isBook && liq > 0 && liq < 10000) {
+    const liqPenalty = Math.max(0, (10000 - liq) / 200);
+    raw -= Math.min(60, liqPenalty);
+  }
+  
   const copies = input.sameNameCopies ?? 0;
   if (copies > 0) raw -= Math.min(60, copies * 18);
   

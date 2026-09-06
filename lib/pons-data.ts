@@ -307,6 +307,129 @@ async function fetchRpcGraduations(
   }
 }
 
+let bondingCache: { tokens: PonsToken[]; at: number } | null = null;
+
+async function fetchRpcBonding(
+  rpcUrl: string
+): Promise<{ tokens: PonsToken[]; health: HealthSource }> {
+  const name = "RPC bonding";
+  const t0 = Date.now();
+
+  if (bondingCache && Date.now() - bondingCache.at < CACHE_MS) {
+    return {
+      tokens: bondingCache.tokens,
+      health: {
+        name,
+        ok: true,
+        hits: 1,
+        attempts: 1,
+        ms: Date.now() - t0,
+        detail: `${bondingCache.tokens.length} bonding (cached)`,
+      },
+    };
+  }
+
+  try {
+    const headHex = await rpc<string>(rpcUrl, "eth_blockNumber", []);
+    const head = Number.parseInt(headHex, 16);
+    const from = Math.max(0, head - 80_000);
+
+    const launchLogs = await rpc<RpcLog[]>(rpcUrl, "eth_getLogs", [
+      {
+        address: PONS_FACTORY_V2,
+        fromBlock: "0x" + from.toString(16),
+        toBlock: "0x" + head.toString(16),
+        topics: [TOKEN_LAUNCHED_TOPIC0],
+      },
+    ]);
+
+    const seen = new Set<string>();
+    const tokens: PonsToken[] = [];
+    const now = Date.now();
+
+    for (const log of launchLogs) {
+      const topics = log.topics || [];
+      const topic0 = topics[0]?.toLowerCase();
+      if (topic0 !== TOKEN_LAUNCHED_TOPIC0) continue;
+
+      const token = topicToAddress(topics[1]);
+      if (!token || isProtocol(token)) continue;
+
+      const key = token.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const blockNumber = log.blockNumber ? Number.parseInt(log.blockNumber, 16) : 0;
+      const estimatedTs = now - ((head - blockNumber) / 10) * 1000;
+      const ageSec = Math.floor((now - estimatedTs) / 1000);
+
+      if (ageSec >= MAX_AGE_SEC) continue;
+
+      tokens.push({
+        token,
+        deployer: "0x0000000000000000000000000000000000000000",
+        factory: PONS_FACTORY_V2,
+        blockNumber,
+        txHash: log.transactionHash || "",
+        timestampMs: estimatedTs,
+        chain: "robinhood",
+        pad: "PONS",
+        graduated: false,
+        ageSec,
+      });
+    }
+
+    bondingCache = { tokens, at: Date.now() };
+
+    let detail = `${tokens.length} bonding`;
+    if (tokens.length === 0) {
+      if (launchLogs.length === 0) {
+        detail = "0 bonding (no logs in block window)";
+      } else {
+        detail = "0 bonding (all filtered or parse miss)";
+      }
+    }
+
+    return {
+      tokens,
+      health: {
+        name,
+        ok: true,
+        hits: 1,
+        attempts: 1,
+        ms: Date.now() - t0,
+        detail,
+      },
+    };
+  } catch (err) {
+    if (bondingCache) {
+      return {
+        tokens: bondingCache.tokens,
+        health: {
+          name,
+          ok: true,
+          hits: 1,
+          attempts: 1,
+          ms: Date.now() - t0,
+          detail: `${bondingCache.tokens.length} bonding (last good)`,
+        },
+      };
+    }
+
+    return {
+      tokens: [],
+      health: {
+        name,
+        ok: false,
+        hits: 0,
+        attempts: 1,
+        ms: Date.now() - t0,
+        detail: err instanceof Error ? err.message : "unknown error",
+      },
+    };
+  }
+}
+
 export async function fetchPonsTokens(): Promise<{
   tokens: PonsToken[];
   health: HealthSource[];
@@ -317,14 +440,29 @@ export async function fetchPonsTokens(): Promise<{
   const catalogResult = await fetchCatalog();
   health.push(catalogResult.health);
 
-  let rpcTokens: PonsToken[] = [];
+  let rpcGradTokens: PonsToken[] = [];
+  let rpcBondingTokens: PonsToken[] = [];
+  
   if (rpcUrl) {
-    const rpcResult = await fetchRpcGraduations(rpcUrl);
-    health.push(rpcResult.health);
-    rpcTokens = rpcResult.tokens;
+    const [rpcGradResult, rpcBondingResult] = await Promise.all([
+      fetchRpcGraduations(rpcUrl),
+      fetchRpcBonding(rpcUrl),
+    ]);
+    health.push(rpcGradResult.health);
+    health.push(rpcBondingResult.health);
+    rpcGradTokens = rpcGradResult.tokens;
+    rpcBondingTokens = rpcBondingResult.tokens;
   } else {
     health.push({
       name: "RPC graduations",
+      ok: false,
+      hits: 0,
+      attempts: 0,
+      ms: 0,
+      detail: "rpc not wired",
+    });
+    health.push({
+      name: "RPC bonding",
       ok: false,
       hits: 0,
       attempts: 0,
@@ -335,12 +473,16 @@ export async function fetchPonsTokens(): Promise<{
 
   const tokenMap = new Map<string, PonsToken>();
 
-  for (const token of [...catalogResult.tokens, ...rpcTokens]) {
+  for (const token of [...catalogResult.tokens, ...rpcGradTokens, ...rpcBondingTokens]) {
     const key = token.token.toLowerCase();
     const existing = tokenMap.get(key);
 
-    if (!existing || (token.name && !existing.name)) {
+    if (!existing) {
       tokenMap.set(key, token);
+    } else if (token.graduated && !existing.graduated) {
+      tokenMap.set(key, token);
+    } else if (token.name && !existing.name) {
+      tokenMap.set(key, { ...existing, name: token.name, symbol: token.symbol, logo: token.logo });
     }
   }
 

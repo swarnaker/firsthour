@@ -45,7 +45,7 @@ export default function Feed({
     if (filter === "almost-bonded" && (!t.curveFillPct || t.curveFillPct < 0.8 || t.graduated))
       return false;
     if (filter === "graduated" && !t.graduated) return false;
-    if (filter === "heat200" && (!t.heat || t.heat < 200)) return false;
+    if (filter === "heat200" && (!t.heat || t.heat < 320 || !t.mcapUsd || t.mcapUsd < 50000)) return false;
 
     return true;
   });
