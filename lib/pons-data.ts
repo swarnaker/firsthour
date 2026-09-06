@@ -501,6 +501,15 @@ async function fetchRpcBonding(
 
     rpcBondingCache = { tokens, at: Date.now() };
 
+    let detail = `${tokens.length} bonding`;
+    if (tokens.length === 0) {
+      if (launchedLogs.length === 0) {
+        detail = "0 bonding (no logs in block window)";
+      } else {
+        detail = "0 bonding (all filtered or parse miss)";
+      }
+    }
+
     return {
       tokens,
       health: {
@@ -509,7 +518,7 @@ async function fetchRpcBonding(
         hits: 1,
         attempts: 1,
         ms: Date.now() - t0,
-        detail: `${tokens.length} bonding`,
+        detail,
       },
     };
   } catch (err) {
@@ -713,18 +722,24 @@ export async function fetchPonsTokens(): Promise<{
     });
   }
 
-  // Mark duplicates as COPY (keep highest heat)
+  // Handle duplicates: keep highest heat, mark 2nd as COPY, hide rest
+  const hiddenTokens = new Set<string>();
+  
   for (const [ticker, group] of tickerGroups.entries()) {
     if (group.length <= 1) continue;
 
-    // Sort by heat descending
     group.sort((a, b) => (b.heat || 0) - (a.heat || 0));
 
-    // Mark all but the first as COPY
-    for (let i = 1; i < group.length; i++) {
-      group[i].symbol = group[i].symbol + " COPY";
+    if (group[1]) {
+      group[1].symbol = group[1].symbol + " COPY";
+    }
+    
+    for (let i = 2; i < group.length; i++) {
+      hiddenTokens.add(group[i].token.toLowerCase());
     }
   }
+
+  tokens = tokens.filter(token => !hiddenTokens.has(token.token.toLowerCase()));
 
   return { tokens, health };
 }
