@@ -28,8 +28,9 @@ body {
   overflow-x: hidden;
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Courier New', monospace;
-  font-size: 13px;
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 body {

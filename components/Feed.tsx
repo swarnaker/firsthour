@@ -1,5 +1,6 @@
 import type { PonsToken, FilterType, SortType } from "@/lib/types";
 import TokenRow from "./TokenRow";
+import { useState, useEffect } from "react";
 
 interface FeedProps {
   tokens: PonsToken[];
@@ -26,6 +27,15 @@ export default function Feed({
   onToggleWatchlist,
   health,
 }: FeedProps) {
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const checkDesktop = () => setIsDesktop(window.innerWidth >= 900);
+    checkDesktop();
+    window.addEventListener("resize", checkDesktop);
+    return () => window.removeEventListener("resize", checkDesktop);
+  }, []);
+
   let filtered = tokens.filter((t) => {
     if (t.ageSec == null || t.ageSec >= 3600) return false;
 
@@ -124,6 +134,59 @@ export default function Feed({
         <div className="text-center py-8" style={{ color: "var(--text-dim)" }}>
           No Pons tokens under 1 hour
         </div>
+      ) : isDesktop ? (
+        <table
+          className="w-full"
+          style={{
+            borderCollapse: "collapse",
+            tableLayout: "auto",
+          }}
+        >
+          <thead>
+            <tr
+              className="border-b"
+              style={{
+                borderColor: "var(--border)",
+              }}
+            >
+              <th className="px-2 py-1.5 text-left text-xs" style={{ color: "var(--text-dim)" }}>
+                ★
+              </th>
+              <th className="px-2 py-1.5 text-left text-xs" style={{ color: "var(--text-dim)" }}>
+                Token
+              </th>
+              <th className="px-2 py-1.5 text-left text-xs" style={{ color: "var(--text-dim)" }}>
+                Age
+              </th>
+              <th className="px-2 py-1.5 text-left text-xs" style={{ color: "var(--text-dim)" }}>
+                Heat
+              </th>
+              <th className="px-2 py-1.5 text-left text-xs" style={{ color: "var(--text-dim)" }}>
+                Mcap
+              </th>
+              <th className="px-2 py-1.5 text-left text-xs" style={{ color: "var(--text-dim)" }}>
+                Liq/Curve%
+              </th>
+              <th className="px-2 py-1.5 text-left text-xs" style={{ color: "var(--text-dim)" }}>
+                5m%
+              </th>
+              <th className="px-2 py-1.5 text-left text-xs" style={{ color: "var(--text-dim)" }}>
+                Links
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((token) => (
+              <TokenRow
+                key={token.token}
+                token={token}
+                isStarred={watchlist.has(token.token)}
+                onToggleStar={() => onToggleWatchlist(token.token)}
+                variant="table"
+              />
+            ))}
+          </tbody>
+        </table>
       ) : (
         <div className="space-y-1">
           {filtered.map((token) => (
@@ -132,6 +195,7 @@ export default function Feed({
               token={token}
               isStarred={watchlist.has(token.token)}
               onToggleStar={() => onToggleWatchlist(token.token)}
+              variant="card"
             />
           ))}
         </div>
