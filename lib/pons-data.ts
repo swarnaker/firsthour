@@ -669,6 +669,11 @@ export async function fetchPonsTokens(): Promise<{
       if (!token.logo && dexData.info?.imageUrl) {
         token.logo = dexData.info.imageUrl;
       }
+
+      // Extract quote symbol
+      if (dexData.quoteToken?.symbol) {
+        token.quoteSymbol = dexData.quoteToken.symbol;
+      }
     }
 
     // If still Unknown/???, try RPC metadata
@@ -730,10 +735,15 @@ export async function fetchPonsTokens(): Promise<{
 
     group.sort((a, b) => (b.heat || 0) - (a.heat || 0));
 
+    // Mark 2nd highest as COPY (if not already marked)
     if (group[1]) {
-      group[1].symbol = group[1].symbol + " COPY";
+      const currentSymbol = group[1].symbol || "";
+      if (!currentSymbol.endsWith(" COPY")) {
+        group[1].symbol = currentSymbol + " COPY";
+      }
     }
     
+    // Hide all tokens after the 2nd one
     for (let i = 2; i < group.length; i++) {
       hiddenTokens.add(group[i].token.toLowerCase());
     }

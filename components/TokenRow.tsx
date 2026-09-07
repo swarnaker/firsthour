@@ -108,8 +108,17 @@ export default function TokenRow({ token, isStarred, onToggleStar, showAged, var
             : formatPercent(token.curveFillPct)}
         </td>
 
-        <td className="px-2 py-1.5 text-xs" style={{ color: "var(--text-dim)" }}>
-          —
+        <td className="px-2 py-1.5">
+          <div
+            className="px-1.5 py-0.5 text-[10px] font-bold rounded"
+            style={{
+              backgroundColor: "var(--bg-tertiary)",
+              color: "var(--gold)",
+              display: "inline-block",
+            }}
+          >
+            {token.quoteSymbol || "—"}
+          </div>
         </td>
 
         <td className="px-2 py-1.5">
@@ -181,7 +190,15 @@ export default function TokenRow({ token, isStarred, onToggleStar, showAged, var
       <div className="text-[11px] mb-1" style={{ color: "var(--text-secondary)" }}>
         {formatAge(token.ageSec)} · ${formatNumber(token.mcapUsd)} · {token.graduated
           ? `$${formatNumber(token.liqUsd)}`
-          : formatPercent(token.curveFillPct)}
+          : formatPercent(token.curveFillPct)} · <span
+          className="px-1 py-0.5 rounded text-[9px] font-bold"
+          style={{
+            backgroundColor: "var(--bg-tertiary)",
+            color: "var(--gold)",
+          }}
+        >
+          {token.quoteSymbol || "—"}
+        </span>
       </div>
 
       <div className="flex items-center gap-2 text-xs">
