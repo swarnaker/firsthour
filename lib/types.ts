@@ -24,6 +24,7 @@ export interface PonsToken {
   heat?: number;
   moving?: boolean;
   pool?: string;
+  quoteSymbol?: string;
 }
 
 export interface HeatInput {

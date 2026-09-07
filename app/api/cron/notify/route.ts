@@ -20,7 +20,15 @@ export async function GET(request: NextRequest) {
     const alerts: string[] = [];
 
     for (const token of tokens) {
-      if (token.heat && token.heat >= 200 && token.ageSec && token.ageSec < 3600) {
+      // Alert gate: heat >= 320 AND mcapUsd >= 50000 AND age < 1 hour
+      if (
+        token.heat &&
+        token.heat >= 320 &&
+        token.mcapUsd &&
+        token.mcapUsd >= 50000 &&
+        token.ageSec &&
+        token.ageSec < 3600
+      ) {
         const sent = await sendTelegramAlert(
           token.token,
           token.heat,

@@ -168,7 +168,7 @@ export default function Feed({
                 Liq/Curve%
               </th>
               <th className="px-2 py-1.5 text-left text-xs" style={{ color: "var(--text-dim)" }}>
-                5m%
+                Quote
               </th>
               <th className="px-2 py-1.5 text-left text-xs" style={{ color: "var(--text-dim)" }}>
                 Links
